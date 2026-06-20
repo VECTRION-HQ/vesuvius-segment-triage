@@ -1,0 +1,32 @@
+[
+  {"name": "unreviewed hides reviewed",        "statuses": ["reviewed"],        "vc_gsfs_mode": null,        "filter": "unreviewed",          "keep": false},
+  {"name": "unreviewed keeps untagged",        "statuses": [],                  "vc_gsfs_mode": null,        "filter": "unreviewed",          "keep": true},
+  {"name": "unreviewed keeps approved-only",   "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "unreviewed",          "keep": true},
+  {"name": "unreviewed keeps partial",         "statuses": ["partial_review"],  "vc_gsfs_mode": null,        "filter": "unreviewed",          "keep": true},
+
+  {"name": "hide_unapproved keeps approved",   "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "hide_unapproved",     "keep": true},
+  {"name": "hide_unapproved drops untagged",   "statuses": [],                  "vc_gsfs_mode": null,        "filter": "hide_unapproved",     "keep": false},
+  {"name": "hide_unapproved drops reviewed",   "statuses": ["reviewed"],        "vc_gsfs_mode": null,        "filter": "hide_unapproved",     "keep": false},
+
+  {"name": "hide_defective drops defective",   "statuses": ["defective"],       "vc_gsfs_mode": null,        "filter": "hide_defective",      "keep": false},
+  {"name": "hide_defective keeps untagged",    "statuses": [],                  "vc_gsfs_mode": null,        "filter": "hide_defective",      "keep": true},
+  {"name": "hide_defective keeps approved",    "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "hide_defective",      "keep": true},
+
+  {"name": "hide_partial drops partial",       "statuses": ["partial_review"],  "vc_gsfs_mode": null,        "filter": "hide_partial_review", "keep": false},
+  {"name": "hide_partial drops reviewed",      "statuses": ["reviewed"],        "vc_gsfs_mode": null,        "filter": "hide_partial_review", "keep": false},
+  {"name": "hide_partial keeps approved",      "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "hide_partial_review", "keep": true},
+  {"name": "hide_partial keeps untagged",      "statuses": [],                  "vc_gsfs_mode": null,        "filter": "hide_partial_review", "keep": true},
+
+  {"name": "show_partial keeps partial",       "statuses": ["partial_review"],  "vc_gsfs_mode": null,        "filter": "show_partial_review", "keep": true},
+  {"name": "show_partial keeps reviewed",      "statuses": ["reviewed"],        "vc_gsfs_mode": null,        "filter": "show_partial_review", "keep": true},
+  {"name": "show_partial drops approved",      "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "show_partial_review", "keep": false},
+  {"name": "show_partial drops untagged",      "statuses": [],                  "vc_gsfs_mode": null,        "filter": "show_partial_review", "keep": false},
+
+  {"name": "inspect_only keeps inspect",       "statuses": ["inspect"],         "vc_gsfs_mode": null,        "filter": "inspect_only",        "keep": true},
+  {"name": "inspect_only drops untagged",      "statuses": [],                  "vc_gsfs_mode": null,        "filter": "inspect_only",        "keep": false},
+  {"name": "inspect_only drops approved",      "statuses": ["approved"],        "vc_gsfs_mode": null,        "filter": "inspect_only",        "keep": false},
+
+  {"name": "hide_expansion drops expansion",   "statuses": [],                  "vc_gsfs_mode": "expansion", "filter": "hide_expansion",      "keep": false},
+  {"name": "hide_expansion keeps tracing",     "statuses": [],                  "vc_gsfs_mode": "tracing",   "filter": "hide_expansion",      "keep": true},
+  {"name": "hide_expansion keeps no-mode",     "statuses": [],                  "vc_gsfs_mode": null,        "filter": "hide_expansion",      "keep": true}
+]

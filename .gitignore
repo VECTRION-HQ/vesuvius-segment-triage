@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Tool output
+*.report.html
+demo.html
+/tmp_report*/
+
+# OS
+.DS_Store
