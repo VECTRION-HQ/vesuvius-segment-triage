@@ -15,11 +15,17 @@ def summarize(records: Iterable[SegmentRecord]) -> dict:
     total_area = 0.0
     area_known = 0
     tagged = 0
+    rendered = 0
+    superseded = 0
     for rec in records:
         for status in rec.display_statuses():
             by_status[status] = by_status.get(status, 0) + 1
         if not rec.is_untagged:
             tagged += 1
+        if rec.rendered:
+            rendered += 1
+        if rec.superseded:
+            superseded += 1
         if rec.area_cm2:
             total_area += rec.area_cm2
             area_known += 1
@@ -29,6 +35,8 @@ def summarize(records: Iterable[SegmentRecord]) -> dict:
         # more than `total`. `untagged` counts segments with no tags at all.
         "total": total,
         "tagged": tagged,
+        "rendered": rendered,
+        "superseded": superseded,
         "by_status": by_status,
         "total_area_cm2": round(total_area, 2),
         "area_known": area_known,

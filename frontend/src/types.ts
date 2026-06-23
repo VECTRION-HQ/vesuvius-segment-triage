@@ -9,6 +9,10 @@ export interface SegmentRecord {
   author: string | null;
   layer_count: number | null;
   has_ink_prediction: boolean;
+  rendered: boolean;
+  volume: string | null;
+  created: string | null;
+  superseded: boolean;
   date_last_modified: string | null;
   vc_gsfs_mode: string | null;
   avg_cost: number | null;
@@ -27,6 +31,8 @@ export interface FilterPreset {
 export interface Summary {
   total: number;
   tagged: number;
+  rendered: number;
+  superseded: number;
   by_status: Record<string, number>;
   total_area_cm2: number;
   area_known: number;

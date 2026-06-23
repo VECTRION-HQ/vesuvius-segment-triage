@@ -23,6 +23,7 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="Path to a .volpkg (or its paths/ dir, or a single segment), or an http(s) mirror URL.")
     scan.add_argument("-o", "--out", default="segment-triage.report.html", help="Output HTML path.")
     scan.add_argument("--limit", type=int, default=None, help="Only crawl the first N segments.")
+    scan.add_argument("--workers", type=int, default=8, help="Concurrent fetches for remote (http) crawls.")
     scan.add_argument("--strict", action="store_true", help="Fail on a malformed meta.json instead of warning.")
     scan.add_argument("--json", dest="json_out", default=None, help="Also write the raw manifest JSON here.")
 
@@ -43,7 +44,7 @@ def main(argv=None) -> int:
         from .report import build_manifest, write_report
 
         try:
-            records = crawl(args.root, strict=args.strict, limit=args.limit)
+            records = crawl(args.root, strict=args.strict, limit=args.limit, workers=args.workers)
         except (FileNotFoundError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2

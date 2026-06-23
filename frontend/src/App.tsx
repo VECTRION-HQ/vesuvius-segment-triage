@@ -27,7 +27,7 @@ function StatusBadge({ status }: { status: string }) {
 
 type SortKey =
   | "id" | "status_count" | "area_cm2" | "layer_count"
-  | "has_ink_prediction" | "author" | "date_last_modified" | "meta_format";
+  | "rendered" | "author" | "created" | "meta_format";
 
 function sortValue(r: SegmentRecord, key: SortKey): string | number | null {
   switch (key) {
@@ -35,9 +35,9 @@ function sortValue(r: SegmentRecord, key: SortKey): string | number | null {
     case "status_count": return r.statuses.length;
     case "area_cm2": return r.area_cm2;
     case "layer_count": return r.layer_count;
-    case "has_ink_prediction": return r.has_ink_prediction ? 1 : 0;
+    case "rendered": return r.rendered ? 1 : 0;
     case "author": return r.author;
-    case "date_last_modified": return r.date_last_modified;
+    case "created": return r.created;
     case "meta_format": return r.meta_format;
   }
 }
@@ -45,16 +45,14 @@ function sortValue(r: SegmentRecord, key: SortKey): string | number | null {
 function compare(a: SegmentRecord, b: SegmentRecord, key: SortKey, dir: 1 | -1): number {
   const va = sortValue(a, key);
   const vb = sortValue(b, key);
-  if (va === null || va === undefined) return vb === null || vb === undefined ? 0 : 1; // nulls last
+  if (va === null || va === undefined) return vb === null || vb === undefined ? 0 : 1;
   if (vb === null || vb === undefined) return -1;
   if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
   return String(va).localeCompare(String(vb)) * dir;
 }
 
-function fmtDate(d: string | null): string {
-  if (!d) return "—";
-  return d.length >= 10 ? d.slice(0, 10) : d;
-}
+const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : "—");
+const segUrl = (r: SegmentRecord) => (/^https?:\/\//.test(r.source) ? r.source : null);
 
 function Stat({ label: l, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
@@ -67,39 +65,48 @@ function Stat({ label: l, value, tone }: { label: string; value: string | number
 
 export default function App() {
   const { summary, config, segments } = MANIFEST;
+  const supersededCount = useMemo(() => segments.filter((s) => s.superseded).length, []);
   const [active, setActive] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("id");
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [showSuperseded, setShowSuperseded] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
 
   const rows = useMemo(() => {
-    const filtered = applyFilters(segments, active, search);
+    const base = showSuperseded ? segments : segments.filter((s) => !s.superseded);
+    const filtered = applyFilters(base, active, search);
     return [...filtered].sort((a, b) => compare(a, b, sortKey, sortDir));
-  }, [active, search, sortKey, sortDir]);
+  }, [active, search, sortKey, sortDir, showSuperseded]);
+
+  const shownArea = useMemo(
+    () => Math.round(rows.reduce((s, r) => s + (r.area_cm2 || 0), 0) * 10) / 10,
+    [rows],
+  );
 
   function toggle(key: string) {
     setActive((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   }
   function sortBy(key: SortKey) {
     if (key === sortKey) setSortDir((d) => (d === 1 ? -1 : 1));
-    else { setSortKey(key); setSortDir(1); }
+    else { setSortKey(key); setSortDir(key === "created" || key === "area_cm2" ? -1 : 1); }
   }
   const arrow = (key: SortKey) => (key === sortKey ? (sortDir === 1 ? " ▲" : " ▼") : "");
-
   const legend = [...config.statuses, config.untagged];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6">
-        <header className="mb-5">
-          <h1 className="text-xl font-bold text-slate-800">Segment Triage</h1>
-          <p className="text-sm text-slate-500">
-            Cross-segment review status for Vesuvius VC3D <code className="rounded bg-slate-200 px-1">.volpkg</code> surfaces ·
-            source: <span className="font-mono">{MANIFEST.source || "—"}</span>
-          </p>
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Segment Triage</h1>
+            <p className="text-sm text-slate-500">
+              Review status across VC3D <code className="rounded bg-slate-200 px-1">.volpkg</code> surfaces ·
+              source <span className="font-mono text-slate-600">{MANIFEST.source || "—"}</span>
+            </p>
+          </div>
           {MANIFEST.is_demo && (
-            <div className="mt-2 inline-block rounded-md bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-600/20">
-              Demo data — review tags are synthesized (the public mirror's meta.json has no tags yet). Point <code>--root</code> at a local .volpkg for real tags.
+            <div className="rounded-md bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-600/20">
+              Demo — tags synthesized; point <code>--root</code> at a local .volpkg for real tags
             </div>
           )}
         </header>
@@ -107,9 +114,9 @@ export default function App() {
         <section className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Segments" value={summary.total} />
           <Stat label="Approved" value={`${summary.pct_approved}%`} tone="text-emerald-600" />
-          <Stat label="Untagged (backlog)" value={summary.by_status["untagged"] ?? 0} tone="text-slate-500" />
+          <Stat label="Untagged (backlog)" value={summary.by_status["untagged"] ?? 0} />
           <Stat label="Defective" value={summary.by_status["defective"] ?? 0} tone="text-rose-600" />
-          <Stat label="Reviewed" value={summary.by_status["reviewed"] ?? 0} tone="text-sky-600" />
+          <Stat label="Rendered" value={summary.rendered ?? 0} tone="text-sky-600" />
           <Stat label="Total area cm²" value={summary.total_area_cm2} />
         </section>
 
@@ -140,13 +147,18 @@ export default function App() {
             className="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
             {legend.map((s) => (
-              <span key={s} className="mr-1">
-                <StatusBadge status={s} /> {summary.by_status[s] ?? 0}
-              </span>
+              <span key={s} className="mr-1"><StatusBadge status={s} /> {summary.by_status[s] ?? 0}</span>
             ))}
           </div>
-          <div className="text-sm font-medium text-slate-600">
-            Showing {rows.length} of {summary.total}
+          <div className="flex items-center gap-3 text-sm">
+            {supersededCount > 0 && (
+              <label className="flex cursor-pointer items-center gap-1 text-xs text-slate-500">
+                <input type="checkbox" checked={showSuperseded}
+                  onChange={(e) => setShowSuperseded(e.target.checked)} />
+                show superseded ({supersededCount})
+              </label>
+            )}
+            <span className="font-medium text-slate-600">{rows.length} of {summary.total} · {shownArea} cm²</span>
           </div>
         </section>
 
@@ -158,42 +170,40 @@ export default function App() {
                 <th className="px-3 py-2">Status</th>
                 <Th onClick={() => sortBy("area_cm2")} numeric>Area cm²{arrow("area_cm2")}</Th>
                 <Th onClick={() => sortBy("layer_count")} numeric>Layers{arrow("layer_count")}</Th>
-                <Th onClick={() => sortBy("has_ink_prediction")}>Ink{arrow("has_ink_prediction")}</Th>
+                <Th onClick={() => sortBy("rendered")}>Mesh{arrow("rendered")}</Th>
                 <Th onClick={() => sortBy("author")}>Author{arrow("author")}</Th>
-                <Th onClick={() => sortBy("date_last_modified")}>Modified{arrow("date_last_modified")}</Th>
+                <Th onClick={() => sortBy("created")}>Created{arrow("created")}</Th>
                 <Th onClick={() => sortBy("meta_format")}>meta{arrow("meta_format")}</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-slate-700">
-                    {r.id}
-                    {r.warnings.length > 0 && (
-                      <span title={r.warnings.join("; ")} className="ml-1 cursor-help text-amber-500">⚠</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1">
+              {rows.map((r) => {
+                const url = segUrl(r);
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                      {url
+                        ? <a href={url} target="_blank" rel="noreferrer" className="text-sky-700 hover:underline">{r.id}↗</a>
+                        : <span className="text-slate-700">{r.id}</span>}
+                      {r.superseded && <span className="ml-1 text-slate-400" title="superseded">·old</span>}
+                      {r.warnings.length > 0 && (
+                        <span title={r.warnings.join("; ")} className="ml-1 cursor-help text-amber-500">⚠</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2"><div className="flex flex-wrap gap-1">
                       {r.display_statuses.map((s) => <StatusBadge key={s} status={s} />)}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                    {r.area_cm2 == null ? "—" : r.area_cm2.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.layer_count ?? "—"}</td>
-                  <td className="px-3 py-2 text-center">{r.has_ink_prediction ? "✓" : "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.author || "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-500">{fmtDate(r.date_last_modified)}</td>
-                  <td className="px-3 py-2 text-xs text-slate-500">{r.meta_format}</td>
-                </tr>
-              ))}
+                    </div></td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.area_cm2 == null ? "—" : r.area_cm2.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.layer_count ?? "—"}</td>
+                    <td className="px-3 py-2 text-center">{r.rendered ? <span className="text-emerald-600">✓</span> : "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.author || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-500">{fmtDate(r.created)}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">{r.meta_format}</td>
+                  </tr>
+                );
+              })}
               {rows.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-slate-400">
-                    No segments match the active filters.
-                  </td>
-                </tr>
+                <tr><td colSpan={8} className="px-3 py-10 text-center text-slate-400">No segments match the active filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -201,7 +211,7 @@ export default function App() {
 
         <footer className="mt-4 text-xs text-slate-400">
           Generated by {MANIFEST.tool} v{MANIFEST.version}. Reads VC3D meta.json review tags
-          (approved / defective / reviewed / inspect / partial_review) — metadata only, no scroll data is downloaded or redistributed.
+          (approved / defective / reviewed / inspect / partial_review) and segment metadata — read-only, no scroll data is downloaded or redistributed.
         </footer>
       </div>
     </div>

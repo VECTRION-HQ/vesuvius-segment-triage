@@ -58,8 +58,14 @@ segment-triage write-demo-volpkg <dir>     # write a real demo .volpkg/paths tre
 - a **`paths/`** directory or a **single segment** folder,
 - an **http(s) mirror URL** (e.g. a `…/PHercParis4.volpkg/paths/` listing on `data.aws.ash2txt.org`).
 
-Options: `--limit` caps how many segments are crawled, `--strict` fails on a malformed
-`meta.json` (default is warn-and-continue), `--json` also writes the raw manifest.
+Options: `--limit` caps how many segments are crawled, `--workers N` sets remote-crawl
+concurrency (default 8), `--strict` fails on a malformed `meta.json` (default is
+warn-and-continue), `--json` also writes the raw manifest.
+
+When scanning an http mirror, each segment id links to its folder on the data server,
+so you can jump straight to a segment's files. `_superseded` / `_test` segments are
+detected and hidden by default (toggle to show them). Verified end-to-end on the live
+public mirror (`…/PHercParis4.volpkg/paths/`, the legacy tag-less format).
 
 ### Filters (identical to VC3D's surface-tree filters)
 
@@ -83,9 +89,11 @@ For each segment under `paths/`:
 | From `meta.json` | Fallback / derived |
 | --- | --- |
 | `tags` → review statuses (+ user/date) | empty/absent → **Untagged** bucket (never dropped) |
-| `area_cm2`, `author`, `date_last_modified`, `vc_gsfs_mode`, `avg_cost`, `uuid` | `area_cm2.txt`, `author.txt` |
+| `area_cm2`, `author`, `date_last_modified`, `vc_gsfs_mode`, `avg_cost`, `uuid`, `volume` | `area_cm2.txt`, `author.txt` |
+| | **created** date parsed from the `YYYYMMDDHHMMSS` segment id (works on legacy public data too) |
 | | layer count from `layers/*.tif` (counted, **not** downloaded) |
-| | ink-prediction present? (`*_prediction*.png`) |
+| | rendered mesh present? (`*.obj`) · ink prediction present? (`*_prediction*.png`, `*inklabel*.png`) |
+| | superseded? (`_superseded` / `_test` in the id) |
 
 It is **read-only** and reads **metadata only** — it never modifies, downloads, or redistributes
 scroll data. Writing tags is VC3D's job.

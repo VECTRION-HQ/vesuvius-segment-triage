@@ -22,8 +22,27 @@ from .config import PRIMARY_STATUSES
 from .model import SegmentRecord
 
 LAYER_RE = re.compile(r"^\d+\.tiff?$", re.IGNORECASE)
-INK_PRED_RE = re.compile(r"_prediction.*\.png$", re.IGNORECASE)
+INK_PRED_RE = re.compile(r"(_prediction|inklabel).*\.png$", re.IGNORECASE)
+OBJ_RE = re.compile(r"\.obj$", re.IGNORECASE)
+_CREATED_RE = re.compile(r"^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})")
 _HREF_RE = re.compile(r'href="([^"?#]+)"', re.IGNORECASE)
+
+
+def _derive_created(seg_id: str) -> Optional[str]:
+    """Segment ids are YYYYMMDDHHMMSS timestamps -> derive an ISO created date."""
+    m = _CREATED_RE.match(seg_id)
+    if not m:
+        return None
+    y, mo, d, h, mi, s = m.groups()
+    if not ("2015" <= y <= "2035" and "01" <= mo <= "12" and "01" <= d <= "31"):
+        return None
+    return f"{y}-{mo}-{d}T{h}:{mi}:{s}"
+
+
+def _apply_id_metadata(rec: SegmentRecord) -> None:
+    low = rec.id.lower()
+    rec.superseded = "_superseded" in low or "_test" in low
+    rec.created = _derive_created(rec.id)
 
 
 class MalformedMetaError(ValueError):
@@ -75,6 +94,8 @@ def apply_meta(rec: SegmentRecord, meta: dict) -> None:
         rec.date_last_modified = str(meta["date_last_modified"])
     if meta.get("uuid"):
         rec.uuid = str(meta["uuid"])
+    if meta.get("volume"):
+        rec.volume = str(meta["volume"])
 
 
 def _parse_meta_text(rec: SegmentRecord, raw: Optional[str], *, strict: bool) -> None:
@@ -126,11 +147,12 @@ def parse_segment_dir(seg_dir: Path, *, strict: bool = False) -> SegmentRecord:
         except OSError:
             pass
     try:
-        rec.has_ink_prediction = any(
-            INK_PRED_RE.search(p.name) for p in seg_dir.iterdir() if p.is_file()
-        )
+        files = [p.name for p in seg_dir.iterdir() if p.is_file()]
     except OSError:
-        pass
+        files = []
+    rec.has_ink_prediction = any(INK_PRED_RE.search(n) for n in files)
+    rec.rendered = any(OBJ_RE.search(n) for n in files)
+    _apply_id_metadata(rec)
     return rec
 
 
@@ -210,17 +232,21 @@ def parse_segment_remote(seg_url: str, seg_id: str, *, strict: bool = False, tim
             pass
 
     rec.has_ink_prediction = any(INK_PRED_RE.search(n) for n in names)
+    rec.rendered = any(OBJ_RE.search(n) for n in names)
     if "layers" in name_set:
         try:
             layer_names = [_basename(h) for h in _list_links(_http_get(urljoin(seg_url, "layers/"), timeout=timeout))]
             rec.layer_count = sum(1 for n in layer_names if LAYER_RE.match(n))
         except requests.RequestException:
             pass
+    _apply_id_metadata(rec)
     return rec
 
 
-def crawl_remote(url: str, *, strict: bool = False, limit: Optional[int] = None, timeout: int = 30) -> list[SegmentRecord]:
+def crawl_remote(url: str, *, strict: bool = False, limit: Optional[int] = None,
+                 timeout: int = 30, workers: int = 8) -> list[SegmentRecord]:
     import requests
+    from concurrent.futures import ThreadPoolExecutor
 
     if not url.endswith("/"):
         url += "/"
@@ -233,17 +259,19 @@ def crawl_remote(url: str, *, strict: bool = False, limit: Optional[int] = None,
     seg_links = [h for h in _list_links(html) if h.endswith("/")]
     if limit:
         seg_links = seg_links[:limit]
-    records = [
-        parse_segment_remote(urljoin(base, link), _basename(link), strict=strict, timeout=timeout)
-        for link in seg_links
-    ]
-    if not records:
+    if not seg_links:
         raise ValueError(f"No segments found at {base}")
-    return records
+
+    def fetch(link):
+        return parse_segment_remote(urljoin(base, link), _basename(link), strict=strict, timeout=timeout)
+
+    # Remote fetches are latency-bound (several small requests per segment) -> fan out.
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        return list(pool.map(fetch, seg_links))
 
 
-def crawl(root, *, strict: bool = False, limit: Optional[int] = None) -> list[SegmentRecord]:
+def crawl(root, *, strict: bool = False, limit: Optional[int] = None, workers: int = 8) -> list[SegmentRecord]:
     """Crawl ``root`` (a local path or an http(s) mirror URL) into records."""
     if isinstance(root, str) and root.lower().startswith(("http://", "https://")):
-        return crawl_remote(root, strict=strict, limit=limit)
+        return crawl_remote(root, strict=strict, limit=limit, workers=workers)
     return crawl_local(root, strict=strict, limit=limit)
