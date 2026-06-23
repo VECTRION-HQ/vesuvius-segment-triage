@@ -40,8 +40,6 @@ await clickLabel("Unreviewed");
 await clickLabel("Inspect Only"); await wait(120); await shot(i++);
 await clickLabel("Inspect Only");
 await clickLabel("Hide Unapproved"); await wait(120); await shot(i++);
-await clickLabel("Hide Unapproved");
-await page.type('input[type="search"]', "2024"); await wait(120); await shot(i++);
 
 await browser.close();
 console.log("frames written:", i);

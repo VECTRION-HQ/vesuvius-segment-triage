@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from segment_triage import crawl as crawlmod
 from segment_triage.crawl import MalformedMetaError, apply_meta, crawl_local, parse_segment_dir
 from segment_triage.fixtures import write_demo_volpkg
 from segment_triage.model import SegmentRecord
@@ -114,6 +115,54 @@ def test_R8_unknown_tag_tolerated(tmp_path):
     assert "approved" in rec.statuses
     assert "brand_new_status" in rec.statuses  # preserved, appended after canonical
     assert rec.statuses[0] == "approved"
+
+
+# Real-data fields: created derived from id, superseded flag, volume, rendered mesh
+def test_created_and_superseded_from_id(tmp_path):
+    rec = parse_segment_dir(_seg(tmp_path, "20230503225234", meta={"tags": {}}))
+    assert rec.created == "2023-05-03T22:52:34"
+    assert rec.superseded is False
+    sup = parse_segment_dir(_seg(tmp_path, "20230503225234_superseded", meta={"tags": {}}))
+    assert sup.superseded is True
+    assert sup.created == "2023-05-03T22:52:34"  # leading timestamp still parsed
+    assert parse_segment_dir(_seg(tmp_path, "not-a-timestamp", meta={"tags": {}})).created is None
+
+
+def test_volume_and_rendered(tmp_path):
+    d = _seg(tmp_path, "20230601000000", meta={"tags": {}, "volume": "20230205180739"})
+    (d / "20230601000000.obj").write_bytes(b"")
+    rec = parse_segment_dir(d)
+    assert rec.volume == "20230205180739"
+    assert rec.rendered is True
+    assert parse_segment_dir(_seg(tmp_path, "20230602000000", meta={"tags": {}})).rendered is False
+
+
+def test_remote_parse_legacy_segment(monkeypatch):
+    sid = "20240101120000"
+    listing = ('<a href="meta.json">m</a><a href="area_cm2.txt">a</a>'
+               '<a href="author.txt">au</a><a href="layers/">l</a><a href="' + sid + '.obj">o</a>')
+    layers = "".join('<a href="%02d.tif">x</a>' % i for i in range(65))
+
+    def fake_get(url, timeout=30):
+        if url.endswith("/meta.json"):
+            return '{"name":"%s","type":"seg","uuid":"%s","vcps":"pointset.vcps","volume":"20230205180739"}' % (sid, sid)
+        if url.endswith("/area_cm2.txt"):
+            return "7.25"
+        if url.endswith("/author.txt"):
+            return "alice\n"
+        if url.endswith("/layers/"):
+            return layers
+        return listing
+
+    monkeypatch.setattr(crawlmod, "_http_get", fake_get)
+    rec = crawlmod.parse_segment_remote("http://x/paths/%s/" % sid, sid)
+    assert rec.meta_format == "legacy"
+    assert rec.area_cm2 == 7.25
+    assert rec.author == "alice"
+    assert rec.layer_count == 65
+    assert rec.rendered is True
+    assert rec.volume == "20230205180739"
+    assert rec.created == "2024-01-01T12:00:00"
 
 
 # Integration: crawl a real on-disk demo .volpkg tree

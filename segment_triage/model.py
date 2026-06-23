@@ -26,6 +26,10 @@ class SegmentRecord:
     author: Optional[str] = None
     layer_count: Optional[int] = None
     has_ink_prediction: bool = False
+    rendered: bool = False  # a rendered surface mesh (.obj) is present
+    volume: Optional[str] = None  # source volume id (meta.json "volume")
+    created: Optional[str] = None  # ISO date derived from the YYYYMMDDHHMMSS id
+    superseded: bool = False  # id marked _superseded / _test (hidden by default)
     date_last_modified: Optional[str] = None
     vc_gsfs_mode: Optional[str] = None
     avg_cost: Optional[float] = None
