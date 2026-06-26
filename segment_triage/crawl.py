@@ -14,9 +14,10 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from .config import PRIMARY_STATUSES
 from .model import SegmentRecord
@@ -29,19 +30,29 @@ _HREF_RE = re.compile(r'href="([^"?#]+)"', re.IGNORECASE)
 
 
 def _derive_created(seg_id: str) -> Optional[str]:
-    """Segment ids are YYYYMMDDHHMMSS timestamps -> derive an ISO created date."""
+    """Segment ids are YYYYMMDDHHMMSS timestamps -> derive an ISO created date.
+
+    Validates the whole stamp (month/day/hour/min/sec ranges) via strptime, so a
+    prefix-matching but impossible id yields None instead of a bogus date.
+    """
     m = _CREATED_RE.match(seg_id)
     if not m:
         return None
-    y, mo, d, h, mi, s = m.groups()
-    if not ("2015" <= y <= "2035" and "01" <= mo <= "12" and "01" <= d <= "31"):
+    try:
+        dt = datetime.strptime("".join(m.groups()), "%Y%m%d%H%M%S")
+    except ValueError:
         return None
-    return f"{y}-{mo}-{d}T{h}:{mi}:{s}"
+    if not (2015 <= dt.year <= 2035):
+        return None
+    return dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+# Trailing-token match so ids like '..._testament' are NOT mistaken for superseded.
+_SUPERSEDED_RE = re.compile(r"_(superseded|test)($|[^a-z0-9])")
 
 
 def _apply_id_metadata(rec: SegmentRecord) -> None:
-    low = rec.id.lower()
-    rec.superseded = "_superseded" in low or "_test" in low
+    rec.superseded = bool(_SUPERSEDED_RE.search(rec.id.lower()))
     rec.created = _derive_created(rec.id)
 
 
@@ -256,7 +267,10 @@ def crawl_remote(url: str, *, strict: bool = False, limit: Optional[int] = None,
     except requests.RequestException:
         base, html = url, _http_get(url, timeout=timeout)
 
+    base_host = urlparse(base).netloc
     seg_links = [h for h in _list_links(html) if h.endswith("/")]
+    # Same-origin only: ignore absolute / cross-origin hrefs from an untrusted index.
+    seg_links = [h for h in seg_links if urlparse(urljoin(base, h)).netloc == base_host]
     if limit:
         seg_links = seg_links[:limit]
     if not seg_links:
