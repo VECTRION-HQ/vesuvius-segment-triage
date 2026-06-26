@@ -126,6 +126,11 @@ def test_created_and_superseded_from_id(tmp_path):
     assert sup.superseded is True
     assert sup.created == "2023-05-03T22:52:34"  # leading timestamp still parsed
     assert parse_segment_dir(_seg(tmp_path, "not-a-timestamp", meta={"tags": {}})).created is None
+    # '_test' must be a trailing token, not an interior substring (must not hide rows)
+    assert parse_segment_dir(_seg(tmp_path, "20230503225234_testament", meta={"tags": {}})).superseded is False
+    assert parse_segment_dir(_seg(tmp_path, "20230503225234_test", meta={"tags": {}})).superseded is True
+    # impossible timestamp (month 13) -> no bogus created date
+    assert parse_segment_dir(_seg(tmp_path, "20231345226699", meta={"tags": {}})).created is None
 
 
 def test_volume_and_rendered(tmp_path):

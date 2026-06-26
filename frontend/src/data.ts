@@ -37,8 +37,8 @@ const SAMPLE: Manifest = {
     untagged: "untagged", labels: {}, filters: FILTERS,
   },
   segments: [
-    rec({ id: "20230503225234", statuses: ["approved", "reviewed"], area_cm2: 18.4, author: "segmenter-a", layer_count: 65, rendered: true, created: "2023-05-03T22:52:34", volume: "20230205180739", date_last_modified: "2026-06-15T12:00:00" }),
-    rec({ id: "20230718143027", statuses: ["defective"], area_cm2: 3.1, author: "community-1", layer_count: 65, rendered: true, created: "2023-07-18T14:30:27", vc_gsfs_mode: "expansion" }),
+    rec({ id: "20230503225234", statuses: ["approved", "reviewed"], area_cm2: 18.4, author: "segmenter-a", layer_count: 65, rendered: true, has_ink_prediction: true, created: "2023-05-03T22:52:34", volume: "20230205180739", date_last_modified: "2026-06-15T12:00:00", tag_users: { approved: "segmenter-a", reviewed: "segmenter-a" }, tag_dates: { approved: "2026-06-15T12:00:00", reviewed: "2026-06-14T09:00:00" } }),
+    rec({ id: "20230718143027", statuses: ["defective"], area_cm2: 3.1, author: "community-1", layer_count: 65, rendered: true, created: "2023-07-18T14:30:27", vc_gsfs_mode: "expansion", tag_users: { defective: "community-1" }, tag_dates: { defective: "2026-06-10T08:00:00" } }),
     rec({ id: "20241108111522", statuses: ["partial_review"], area_cm2: 20.2, author: "segmenter-b", layer_count: 33, rendered: true, created: "2024-11-08T11:15:22", has_ink_prediction: true }),
     rec({ id: "20250101000000", statuses: [], meta_format: "legacy", author: "community-2", layer_count: 0, created: "2025-01-01T00:00:00" }),
   ],

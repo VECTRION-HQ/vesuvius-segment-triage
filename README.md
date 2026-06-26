@@ -1,5 +1,7 @@
 # vesuvius-segment-triage
 
+[![CI](https://github.com/MAV-HUB/vesuvius-segment-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/MAV-HUB/vesuvius-segment-triage/actions/workflows/ci.yml) · MIT · zero-install · 68 tests — filter logic parity-tested (Python + TypeScript) against VC3D source.
+
 **A cross-segment review-status triage dashboard for [Vesuvius Challenge](https://scrollprize.org) VC3D `.volpkg` surfaces.**
 
 VC3D (volume-cartographer) lets a segmenter tag each surface `approved` / `defective` /
@@ -15,6 +17,8 @@ It's a single, read-only command that produces a self-contained HTML file you ca
 ![Segment Triage dashboard](docs/demo.gif)
 
 **▶ Live demo (seeded data, click the filters):** https://mav-hub.github.io/vesuvius-segment-triage/
+
+**See it in action:** ① whole-scroll status at a glance · ② click a stat card or `Unreviewed` to isolate the backlog · ③ sort by area to triage the biggest surfaces first · ④ `Hide Unapproved` to see only what's signed off.
 
 ---
 
@@ -46,6 +50,8 @@ segment-triage scan --root /path/to/PHercParis4.volpkg -o triage.html && open tr
 ```
 
 That's it — `triage.html` is self-contained; email it, drop it in Discord, or commit it.
+
+> **Heads-up:** scanning the **public mirror** shows every segment as **Untagged** — that's expected. Published `meta.json` is the legacy, tag-less format; real review tags live in a team member's **local `.volpkg`**. Area, author, layers and created-date work either way.
 
 ## Usage
 
