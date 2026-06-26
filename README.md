@@ -14,6 +14,8 @@ It's a single, read-only command that produces a self-contained HTML file you ca
 
 ![Segment Triage dashboard](docs/demo.gif)
 
+**▶ Live demo (seeded data, click the filters):** https://mav-hub.github.io/vesuvius-segment-triage/
+
 ---
 
 ## Why this exists
