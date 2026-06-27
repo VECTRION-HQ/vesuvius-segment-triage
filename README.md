@@ -40,7 +40,7 @@ through hundreds of segments.
 ```bash
 git clone https://github.com/VECTRION-HQ/vesuvius-segment-triage
 cd vesuvius-segment-triage
-pip install .            # pure-Python, tiny deps; the web UI is prebuilt and bundled
+pip install .            # zero third-party deps for local mode; web UI is prebuilt & bundled
 
 # 1) Try it immediately on seeded demo data (no download):
 segment-triage demo -o demo.html && open demo.html
@@ -74,6 +74,8 @@ When scanning an http mirror, each segment id links to its folder on the data se
 so you can jump straight to a segment's files. `_superseded` / `_test` segments are
 detected and hidden by default (toggle to show them). Verified end-to-end on the live
 public mirror (`…/PHercParis4.volpkg/paths/`, the legacy tag-less format).
+
+> Http-mirror scans need the optional extra: `pip install "vesuvius-segment-triage[remote]"`. Local `.volpkg` scans and the demo stay zero-dependency.
 
 ### Filters (identical to VC3D's surface-tree filters)
 
