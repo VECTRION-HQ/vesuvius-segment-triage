@@ -6,13 +6,20 @@ import type { SegmentRecord, Summary } from "./types";
 
 const MANIFEST = loadManifest();
 
-const STATUS_STYLE: Record<string, string> = {
-  approved: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20",
-  reviewed: "bg-sky-100 text-sky-800 ring-1 ring-sky-600/20",
-  partial_review: "bg-indigo-100 text-indigo-800 ring-1 ring-indigo-600/20",
-  inspect: "bg-amber-100 text-amber-800 ring-1 ring-amber-600/20",
-  defective: "bg-rose-100 text-rose-800 ring-1 ring-rose-600/20",
-  untagged: "bg-slate-100 text-slate-500 ring-1 ring-slate-400/20",
+// One desaturated dot + label per status (color reserved for meaning only) —
+// far quieter than a wall of filled pastel pills. Dot carries the hue; text stays neutral.
+const DOT: Record<string, string> = {
+  approved: "bg-emerald-500",
+  reviewed: "bg-sky-500",
+  partial_review: "bg-indigo-500",
+  inspect: "bg-amber-500",
+  defective: "bg-rose-500",
+  untagged: "bg-slate-300",
+};
+const ACCENT: Record<string, string> = {
+  approved: "text-emerald-600",
+  defective: "text-rose-600",
+  reviewed: "text-sky-600",
 };
 
 function label(status: string): string {
@@ -20,9 +27,13 @@ function label(status: string): string {
     status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function StatusBadge({ status, info }: { status: string; info?: string }) {
-  const cls = STATUS_STYLE[status] || "bg-slate-100 text-slate-700 ring-1 ring-slate-400/20";
-  return <span title={info} className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${cls}`}>{label(status)}</span>;
+function StatusDot({ status, info }: { status: string; info?: string }) {
+  return (
+    <span title={info} className="mr-2 inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-600">
+      <span className={`h-2 w-2 rounded-full ${DOT[status] || "bg-slate-300"}`} />
+      {label(status)}
+    </span>
+  );
 }
 
 const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : "—");
@@ -35,7 +46,7 @@ const badgeInfo = (r: SegmentRecord, s: string): string | undefined => {
   const u = r.tag_users?.[s];
   const d = r.tag_dates?.[s];
   if (!u && !d) return undefined;
-  return `${s}${u ? " · " + u : ""}${d ? " · " + d.slice(0, 10) : ""}`;
+  return `${label(s)}${u ? " · " + u : ""}${d ? " · " + d.slice(0, 10) : ""}`;
 };
 
 function computeSummary(list: SegmentRecord[]): Summary {
@@ -82,15 +93,24 @@ function compare(a: SegmentRecord, b: SegmentRecord, key: SortKey, dir: 1 | -1):
   return String(va).localeCompare(String(vb)) * dir;
 }
 
-function Stat({ label: l, value, tone, active, onClick }:
-  { label: string; value: string | number; tone?: string; active?: boolean; onClick?: () => void }) {
+function Caret({ active, dir }: { active: boolean; dir: 1 | -1 }) {
+  if (!active) return <span className="inline-block w-3" aria-hidden />;
+  return (
+    <svg className="inline-block h-3 w-3 text-slate-500" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d={dir === 1 ? "M3 7.5L6 4.5L9 7.5" : "M3 4.5L6 7.5L9 4.5"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Stat({ label: l, value, accent, active, onClick }:
+  { label: string; value: string | number; accent?: string; active?: boolean; onClick?: () => void }) {
   return (
     <button onClick={onClick} disabled={!onClick}
-      className={`rounded-lg border bg-white px-4 py-3 text-left transition ${
-        active ? "border-slate-800 ring-1 ring-slate-800" : "border-slate-200"
-      } ${onClick ? "cursor-pointer hover:border-slate-400" : "cursor-default"}`}>
-      <div className="text-2xl font-semibold tabular-nums text-slate-800">{value}</div>
-      <div className={`text-xs font-medium ${tone || "text-slate-500"}`}>{l}</div>
+      className={`rounded-lg px-3.5 py-2.5 text-left transition ${
+        active ? "bg-slate-900 text-white" : "bg-slate-50 hover:bg-slate-100"
+      } ${onClick ? "cursor-pointer" : "cursor-default"}`}>
+      <div className={`text-xl font-semibold tabular-nums ${active ? "text-white" : accent || "text-slate-800"}`}>{value}</div>
+      <div className={`mt-0.5 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{l}</div>
     </button>
   );
 }
@@ -129,24 +149,24 @@ export default function App() {
     if (key === sortKey) setSortDir((d) => (d === 1 ? -1 : 1));
     else { setSortKey(key); setSortDir(key === "created" || key === "area_cm2" || key === "last_review" ? -1 : 1); }
   }
-  const arrow = (key: SortKey) => (key === sortKey ? (sortDir === 1 ? " ▲" : " ▼") : "");
   const legend = [...config.statuses, config.untagged];
   const allUntagged = summary.tagged === 0 && !MANIFEST.is_demo && summary.total > 0;
+  const hasFilters = active.length > 0 || pick || since;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-2">
+    <div className="min-h-screen bg-white text-slate-900">
+      <div className="mx-auto max-w-7xl px-5 py-6">
+        <header className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Segment Triage</h1>
-            <p className="text-sm text-slate-500">
-              Review status across VC3D <code className="rounded bg-slate-200 px-1">.volpkg</code> surfaces ·
-              source <span className="font-mono text-slate-600">{MANIFEST.source || "—"}</span>
+            <h1 className="text-lg font-semibold tracking-tight text-slate-900">Segment Triage</h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Review status across VC3D <code className="rounded bg-slate-100 px-1 text-[13px]">.volpkg</code> surfaces ·
+              source <span className="font-mono text-[13px] text-slate-600">{MANIFEST.source || "—"}</span>
             </p>
           </div>
           {MANIFEST.is_demo && (
-            <div className="rounded-md bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-600/20">
-              Demo data — these tags are synthesized (no real scroll data). Run on your own .volpkg to see real tags.
+            <div className="rounded-md bg-amber-50 px-2.5 py-1 text-xs text-amber-700 ring-1 ring-amber-200">
+              Demo — tags synthesized; run on your own .volpkg for real tags
             </div>
           )}
         </header>
@@ -158,104 +178,105 @@ export default function App() {
           </div>
         )}
 
-        <section className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <section className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Segments" value={summary.total} active={pick === null} onClick={() => setPick(null)} />
-          <Stat label="Approved" value={`${summary.pct_approved}%`} tone="text-emerald-600" active={pick === "approved"} onClick={() => pickStatus("approved")} />
-          <Stat label="Untagged (backlog)" value={summary.by_status["untagged"] ?? 0} active={pick === "untagged"} onClick={() => pickStatus("untagged")} />
-          <Stat label="Defective" value={summary.by_status["defective"] ?? 0} tone="text-rose-600" active={pick === "defective"} onClick={() => pickStatus("defective")} />
-          <Stat label="Reviewed" value={summary.by_status["reviewed"] ?? 0} tone="text-sky-600" active={pick === "reviewed"} onClick={() => pickStatus("reviewed")} />
+          <Stat label="Approved" value={`${summary.pct_approved}%`} accent={ACCENT.approved} active={pick === "approved"} onClick={() => pickStatus("approved")} />
+          <Stat label="Untagged · backlog" value={summary.by_status["untagged"] ?? 0} active={pick === "untagged"} onClick={() => pickStatus("untagged")} />
+          <Stat label="Defective" value={summary.by_status["defective"] ?? 0} accent={ACCENT.defective} active={pick === "defective"} onClick={() => pickStatus("defective")} />
+          <Stat label="Reviewed" value={summary.by_status["reviewed"] ?? 0} accent={ACCENT.reviewed} active={pick === "reviewed"} onClick={() => pickStatus("reviewed")} />
           <Stat label="Total area cm²" value={summary.total_area_cm2} />
         </section>
 
-        <section className="mb-3 flex flex-wrap items-center gap-2">
+        <section className="mb-2.5 flex flex-wrap items-center gap-1.5">
           {config.filters.map((f) => (
             <label key={f.key} title={f.help}
-              className={`cursor-pointer select-none rounded-md border px-2.5 py-1 text-xs font-medium ${
-                active.includes(f.key) ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+              className={`cursor-pointer select-none rounded-md border px-2.5 py-1 text-xs ${
+                active.includes(f.key) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
               }`}>
-              <input type="checkbox" className="mr-1 align-middle" checked={active.includes(f.key)} onChange={() => toggle(f.key)} />
+              <input type="checkbox" className="mr-1 align-middle accent-slate-900" checked={active.includes(f.key)} onChange={() => toggle(f.key)} />
               {f.label}
             </label>
           ))}
-          {(active.length > 0 || pick || since) && (
-            <button onClick={() => { setActive([]); setPick(null); setSince(""); }}
-              className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 underline hover:text-slate-700">clear</button>
-          )}
         </section>
 
-        <section className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <section className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <input type="search" placeholder="Search segment id…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-56 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+              className="w-56 rounded-md border border-slate-200 px-3 py-1.5 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100" />
             <label className="flex items-center gap-1 text-xs text-slate-500">created ≥
               <input type="date" value={since} onChange={(e) => setSince(e.target.value)}
-                className="rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none" />
+                className="rounded-md border border-slate-200 px-2 py-1 text-xs focus:border-slate-400 focus:outline-none" />
             </label>
           </div>
-          <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-0.5">
             {legend.map((s) => (
               <button key={s} onClick={() => pickStatus(s)} title={`show only ${label(s)}`}
-                className={`mr-1 rounded px-1 ${pick === s ? "ring-1 ring-slate-800" : "hover:bg-slate-100"}`}>
-                <StatusBadge status={s} /> {summary.by_status[s] ?? 0}
+                className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs ${pick === s ? "bg-slate-200 text-slate-900" : "text-slate-500 hover:bg-slate-100"}`}>
+                <span className={`h-2 w-2 rounded-full ${DOT[s]}`} />{label(s)}
+                <span className="tabular-nums text-slate-400">{summary.by_status[s] ?? 0}</span>
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3 text-sm">
             {supersededCount > 0 && (
               <label className="flex cursor-pointer items-center gap-1 text-xs text-slate-500">
-                <input type="checkbox" checked={showSuperseded} onChange={(e) => setShowSuperseded(e.target.checked)} />
+                <input type="checkbox" className="accent-slate-900" checked={showSuperseded} onChange={(e) => setShowSuperseded(e.target.checked)} />
                 show superseded ({supersededCount})
               </label>
             )}
-            <span className="font-medium text-slate-600">{rows.length} of {summary.total} · {shownArea} cm²</span>
+            {hasFilters && (
+              <button onClick={() => { setActive([]); setPick(null); setSince(""); }}
+                className="text-xs text-slate-500 underline hover:text-slate-700">clear</button>
+            )}
+            <span className="tabular-nums font-medium text-slate-700">{rows.length} of {summary.total} · {shownArea} cm²</span>
           </div>
         </section>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="min-w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50/95 text-left text-xs font-medium text-slate-500 backdrop-blur [&_th]:border-b [&_th]:border-slate-200">
               <tr>
-                <Th onClick={() => sortBy("id")}>Segment{arrow("id")}</Th>
-                <th className="px-3 py-2">Status</th>
-                <Th onClick={() => sortBy("area_cm2")} numeric>Area cm²{arrow("area_cm2")}</Th>
-                <Th onClick={() => sortBy("layer_count")} numeric>Layers{arrow("layer_count")}</Th>
-                <Th onClick={() => sortBy("rendered")}>Mesh{arrow("rendered")}</Th>
-                <Th onClick={() => sortBy("has_ink_prediction")}>Ink{arrow("has_ink_prediction")}</Th>
-                <Th onClick={() => sortBy("author")}>Author{arrow("author")}</Th>
-                <Th onClick={() => sortBy("created")}>Created{arrow("created")}</Th>
-                <Th onClick={() => sortBy("last_review")}>Last review{arrow("last_review")}</Th>
-                <th className="px-3 py-2" title="meta.json format: tagged / legacy / missing">format</th>
+                <Th k="id" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Segment</Th>
+                <th className="px-3 py-2.5">Status</th>
+                <Th k="area_cm2" sortKey={sortKey} sortDir={sortDir} onSort={sortBy} numeric>Area cm²</Th>
+                <Th k="layer_count" sortKey={sortKey} sortDir={sortDir} onSort={sortBy} numeric>Layers</Th>
+                <Th k="rendered" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Mesh</Th>
+                <Th k="has_ink_prediction" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Ink</Th>
+                <Th k="author" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Author</Th>
+                <Th k="created" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Created</Th>
+                <Th k="last_review" sortKey={sortKey} sortDir={sortDir} onSort={sortBy}>Last review</Th>
+                <th className="px-3 py-2.5" title="meta.json format: tagged / legacy / missing">Format</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => {
                 const url = segUrl(r);
                 return (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                  <tr key={r.id} className="hover:bg-slate-50/70">
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[13px]">
                       {url
-                        ? <a href={url} target="_blank" rel="noreferrer" className="text-sky-700 hover:underline">{r.id}↗</a>
+                        ? <a href={url} target="_blank" rel="noreferrer" className="text-sky-700 hover:underline">{r.id}<span className="text-slate-400"> ↗</span></a>
                         : <span className="text-slate-700">{r.id}</span>}
                       {r.superseded && <span className="ml-1 text-slate-400" title="superseded">·old</span>}
                       {r.warnings.length > 0 && <span title={r.warnings.join("; ")} className="ml-1 cursor-help text-amber-500">⚠</span>}
                     </td>
-                    <td className="px-3 py-2"><div className="flex flex-wrap gap-1">
-                      {r.display_statuses.map((s) => <StatusBadge key={s} status={s} info={badgeInfo(r, s)} />)}
+                    <td className="px-3 py-2"><div className="flex flex-wrap items-center">
+                      {r.display_statuses.map((s) => <StatusDot key={s} status={s} info={badgeInfo(r, s)} />)}
                     </div></td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.area_cm2 == null ? "—" : r.area_cm2.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.layer_count ?? "—"}</td>
-                    <td className="px-3 py-2 text-center">{r.rendered ? <span className="text-emerald-600">✓</span> : "—"}</td>
-                    <td className="px-3 py-2 text-center">{r.has_ink_prediction ? <span className="text-indigo-600">✓</span> : "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.author || "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-500">{fmtDate(r.created)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-500">{fmtDate(latestReview(r))}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500">{r.meta_format}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.area_cm2 == null ? <span className="text-slate-300">—</span> : r.area_cm2.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.layer_count ?? <span className="text-slate-300">—</span>}</td>
+                    <td className="px-3 py-2">{r.rendered ? <span className="text-emerald-600">✓</span> : <span className="text-slate-300">—</span>}</td>
+                    <td className="px-3 py-2">{r.has_ink_prediction ? <span className="text-indigo-600">✓</span> : <span className="text-slate-300">—</span>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.author || <span className="text-slate-300">—</span>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">{fmtDate(r.created)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">{fmtDate(latestReview(r))}</td>
+                    <td className="px-3 py-2 text-xs text-slate-400">{r.meta_format}</td>
                   </tr>
                 );
               })}
               {rows.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-10 text-center text-slate-400">No segments match the active filters.</td></tr>
+                <tr><td colSpan={10} className="h-24 px-3 text-center text-slate-400">No segments match the active filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -270,10 +291,13 @@ export default function App() {
   );
 }
 
-function Th({ children, onClick, numeric }: { children: ReactNode; onClick: () => void; numeric?: boolean }) {
+function Th({ k, children, sortKey, sortDir, onSort, numeric }:
+  { k: SortKey; children: ReactNode; sortKey: SortKey; sortDir: 1 | -1; onSort: (k: SortKey) => void; numeric?: boolean }) {
   return (
-    <th onClick={onClick} className={`cursor-pointer select-none px-3 py-2 hover:text-slate-700 ${numeric ? "text-right" : ""}`}>
-      {children}
+    <th onClick={() => onSort(k)} className="cursor-pointer select-none px-3 py-2.5 hover:text-slate-700">
+      <span className={`inline-flex items-center gap-1 ${numeric ? "flex-row-reverse" : ""}`}>
+        {children}<Caret active={k === sortKey} dir={sortDir} />
+      </span>
     </th>
   );
 }
