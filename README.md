@@ -1,6 +1,6 @@
 # vesuvius-segment-triage
 
-[![CI](https://github.com/VECTRION-HQ/vesuvius-segment-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/VECTRION-HQ/vesuvius-segment-triage/actions/workflows/ci.yml) · MIT · zero-install · 68 tests — filter logic parity-tested (Python + TypeScript) against VC3D source.
+[![CI](https://github.com/VECTRION-HQ/vesuvius-segment-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/VECTRION-HQ/vesuvius-segment-triage/actions/workflows/ci.yml) · MIT · zero-dependency local install · 68 tests (44 Python + 24 TypeScript) — filter logic parity-tested against VC3D source.
 
 **A cross-segment review-status triage dashboard for [Vesuvius Challenge](https://scrollprize.org) VC3D `.volpkg` surfaces.**
 
@@ -64,7 +64,7 @@ segment-triage write-demo-volpkg <dir>     # write a real demo .volpkg/paths tre
 `--root` accepts:
 - a **`.volpkg`** directory (it looks in `paths/`),
 - a **`paths/`** directory or a **single segment** folder,
-- an **http(s) mirror URL** (e.g. a `…/PHercParis4.volpkg/paths/` listing on `data.aws.ash2txt.org`).
+- an **http(s) mirror URL** (e.g. a `…/PHercParis4.volpkg/paths/` listing on `dl.ash2txt.org`).
 
 Options: `--limit` caps how many segments are crawled, `--workers N` sets remote-crawl
 concurrency (default 8), `--strict` fails on a malformed `meta.json` (default is
