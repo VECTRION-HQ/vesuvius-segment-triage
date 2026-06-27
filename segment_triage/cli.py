@@ -45,7 +45,9 @@ def main(argv=None) -> int:
 
         try:
             records = crawl(args.root, strict=args.strict, limit=args.limit, workers=args.workers)
-        except (FileNotFoundError, ValueError) as exc:
+        except (FileNotFoundError, ValueError, RuntimeError, OSError) as exc:
+            # OSError covers requests' network errors (RequestException subclasses it);
+            # RuntimeError covers the missing-'remote'-extra message.
             print(f"error: {exc}", file=sys.stderr)
             return 2
         out = write_report(records, args.out, source=str(args.root), is_demo=False)

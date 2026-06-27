@@ -188,12 +188,23 @@ def crawl_local(root, *, strict: bool = False, limit: Optional[int] = None) -> l
 
 
 # --------------------------------------------------------------------------- #
-# Remote HTTP mirror (Apache-style autoindex, e.g. data.aws.ash2txt.org)
+# Remote HTTP mirror (Apache-style autoindex, e.g. dl.ash2txt.org)
 # --------------------------------------------------------------------------- #
-def _http_get(url: str, *, timeout: int = 30) -> str:
-    import requests
+def _requests():
+    """Import requests lazily; raise a clear message if the `remote` extra is absent."""
+    try:
+        import requests
 
-    resp = requests.get(url, timeout=timeout)
+        return requests
+    except ImportError as exc:  # pragma: no cover - only without the extra installed
+        raise RuntimeError(
+            "Remote (http) crawling needs the optional 'remote' extra:\n"
+            "  pip install vesuvius-segment-triage[remote]"
+        ) from exc
+
+
+def _http_get(url: str, *, timeout: int = 30) -> str:
+    resp = _requests().get(url, timeout=timeout)
     resp.raise_for_status()
     return resp.text
 
@@ -213,7 +224,7 @@ def _basename(link: str) -> str:
 
 
 def parse_segment_remote(seg_url: str, seg_id: str, *, strict: bool = False, timeout: int = 30) -> SegmentRecord:
-    import requests
+    requests = _requests()
 
     rec = SegmentRecord(id=seg_id, source=seg_url)
     try:
@@ -256,8 +267,9 @@ def parse_segment_remote(seg_url: str, seg_id: str, *, strict: bool = False, tim
 
 def crawl_remote(url: str, *, strict: bool = False, limit: Optional[int] = None,
                  timeout: int = 30, workers: int = 8) -> list[SegmentRecord]:
-    import requests
     from concurrent.futures import ThreadPoolExecutor
+
+    requests = _requests()
 
     if not url.endswith("/"):
         url += "/"
